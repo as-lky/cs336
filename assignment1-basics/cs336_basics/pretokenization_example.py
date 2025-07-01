@@ -1,5 +1,7 @@
 import os
 from typing import BinaryIO
+import re
+
 
 def find_chunk_boundaries(
     file: BinaryIO, 

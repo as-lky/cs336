@@ -26,6 +26,7 @@ def test_train_bpe_speed():
 
 def test_train_bpe():
     input_path = FIXTURES_PATH / "corpus.en"
+  #  input_path = FIXTURES_PATH / "tmp.en" 
     vocab, merges = run_train_bpe(
         input_path=input_path,
         vocab_size=500,

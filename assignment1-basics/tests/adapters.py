@@ -7,6 +7,9 @@ from jaxtyping import Float, Int
 
 import numpy.typing as npt
 import torch
+import regex as re
+import heapq
+
 from torch import Tensor
 
 
@@ -560,6 +563,18 @@ def get_tokenizer(
     """
     raise NotImplementedError
 
+class bytes_pair_number:
+    # pr  (bytes bytes int)
+    def __init__(self, pr):
+        self.pr = pr
+    def __lt__(self, other):
+        if self.pr[2] == other.pr[2]:
+            if self.pr[0] == other.pr[0]:
+                return self.pr[1] > other.pr[1]
+            else:
+                return self.pr[0] > other.pr[0]
+        else:
+            return self.pr[2] < other.pr[2]
 
 def run_train_bpe(
     input_path: str | os.PathLike,
@@ -588,4 +603,192 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
+
+    vocab = {}
+    merges = []
+
+    ### remove special tokens
+
+    with open(input_path, 'r') as f:
+        text = f.read()
+    DEL = '|'.join([re.escape(_) for _ in special_tokens])
+    docs = re.split(DEL, text)
+    del text
+
+    ### pretokenization and merge
+
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    
+    heap = []
+    dict_of_num = {} # pair of (bytes bytes) + int 
+    #st_position_to_pr = {} # start position(the word id and the order id in word) + pair of (bytes bytes)
+    #end_position_to_pr = {} # end position(the word id and the order id in word) + pair of (bytes bytes)
+    #pr_to_position = {}
+    pr_to_words_list = {}
+    dict_of_pretoken = {}
+
+    token_cnt = 0
+    for _ in special_tokens:
+        vocab[token_cnt] = _.encode()
+        token_cnt += 1
+
+    words_list = []
+    for doc in docs:
+        iter_ = re.finditer(PAT, doc)
+        for _ in iter_:
+            words_list.append([__.encode() for __ in _.group()])
+    del docs
+
+    word_id = 0
+  #  print(words_list)
+    for word in words_list:
+        for i in range(len(word) - 1):
+            if word[i] not in dict_of_pretoken:
+                dict_of_pretoken[word[i]] = 1
+                vocab[token_cnt] = word[i]
+                token_cnt += 1
+
+            pr = (word[i], word[i + 1])
+            if pr in dict_of_num:
+                dict_of_num[pr] += 1
+#                pr_to_position.append((word_id, i, i + 1))
+            else :
+                dict_of_num[pr] = 1
+            if pr in pr_to_words_list:
+                if word_id in pr_to_words_list[pr]:
+                    pr_to_words_list[pr][word_id] += 1
+                else :
+                    pr_to_words_list[pr][word_id] = 1
+            else:
+                pr_to_words_list[pr] = {word_id : 1}
+ #               pr_to_position[pr] = [(word_id, i, i + 1)]
+ #           st_position_to_pr[(word_id, i)] = pr
+ #           end_position_to_pr[(word_id, i + 1)] = pr
+
+        if word[-1] not in dict_of_pretoken:
+            dict_of_pretoken[word[-1]] = 1
+            vocab[token_cnt] = word[-1]
+            token_cnt += 1
+
+        word_id += 1
+
+    for key, value in dict_of_num.items():
+        prr = bytes_pair_number((key[0], key[1], value))
+        heapq.heappush(heap, prr)
+
+    heap_update = {} # pairs + int
+
+    tmp = {}
+
+    def update():
+        for _ in tmp.keys():
+            prr = bytes_pair_number((_[0], _[1], dict_of_num[(_[0], _[1])]))
+            heapq.heappush(heap, prr)
+        tmp.clear()
+
+    def add(word_id, pr):
+        if pr in dict_of_num:
+            dict_of_num[pr] += 1
+        else:
+            tmp[pr] = 1
+            dict_of_num[pr] = 1
+        if pr in pr_to_words_list:
+            if word_id in pr_to_words_list[pr]:
+                pr_to_words_list[pr][word_id] += 1
+            else:
+                pr_to_words_list[pr][word_id] = 1
+        else :
+            pr_to_words_list[pr] = {word_id : 1}
+
+    def sub(word_id, pr):
+        heap_update[pr] = 1
+        if pr in dict_of_num:
+            dict_of_num[pr] -= 1
+        else:
+            raise NotImplementedError
+        
+        if pr in pr_to_words_list:
+            if word_id in pr_to_words_list[pr]:
+                if pr_to_words_list[pr][word_id] == 1:
+                    del pr_to_words_list[pr][word_id] 
+                else :
+                    pr_to_words_list[pr][word_id] -= 1
+            else:
+                raise NotImplementedError
+        else :
+            raise NotImplementedError
+
+    def work(pattern):
+        for word_id in pr_to_words_list[pattern].keys():
+            new_word = []
+            i = 0
+            while i < len(words_list[word_id]) - 1:
+                if (words_list[word_id][i], words_list[word_id][i + 1]) == pattern:
+                    if i > 0:
+                        sub(word_id, (words_list[word_id][i - 1], words_list[word_id][i]))
+                        add(word_id, (words_list[word_id][i - 1], pattern[0] + pattern[1]))
+                    if i + 1 < len(words_list[word_id]) - 1:
+                        sub(word_id, (words_list[word_id][i + 1], words_list[word_id][i + 2]))
+                        add(word_id, (pattern[0] + pattern[1], words_list[word_id][i + 2]))
+                    #sub(word_id, pattern) no need
+                    new_word.append(words_list[word_id][i] + words_list[word_id][i + 1])
+                    i += 2
+                else:
+                    new_word.append(words_list[word_id][i])
+                    i += 1
+            if i == len(words_list[word_id]) - 1:
+                new_word.append(words_list[word_id][-1])
+            words_list[word_id] = new_word
+        del dict_of_num[pattern] 
+        update()
+
+#    A = ("Ġ".encode(), "t".encode())
+#    print(dict_of_num[A])
+
+    while True:
+        if token_cnt >= vocab_size:
+            break
+        if len(heap) == 0 :
+            break
+        heap_top = heapq.heappop(heap)
+        pr_now = heap_top.pr
+        
+        # print("=============================")
+        # print((pr_now[0] + pr_now[1]))
+        # print(len(heap))
+
+        if (pr_now[0], pr_now[1]) in heap_update:
+            if dict_of_num[(pr_now[0], pr_now[1])] == 0:
+                continue
+            prr = bytes_pair_number((pr_now[0], pr_now[1], dict_of_num[(pr_now[0], pr_now[1])]))
+            heapq.heappush(heap, prr)
+            del heap_update[(pr_now[0], pr_now[1])]
+            continue
+
+        merges.append((pr_now[0], pr_now[1]))
+        vocab[token_cnt] = (pr_now[0], pr_now[1])
+        token_cnt += 1
+
+        
+        work((pr_now[0], pr_now[1]))
+    #    print(dict_of_num)
+          
+        # for position in pr_to_position[(pr_now[0], pr_now[1])]:
+        #     word_id = position[0]
+        #     start = position[1]
+        #     end = position[2]
+
+        #     del end_position_to_pr[(word_id, end)]
+        #     del st_position_to_pr[(word_id, start)]
+            
+        #     # front
+        #     if start > 0:
+        #         pr_tmp = end_position_to_pr[(word_id, start)]
+        #         assert pr_tmp[1] == pr_now[0]
+        #         end_position_to_pr[(word_id, end)] = (pr_tmp[0], pr_now[0] + pr_now[1])
+        #         del end_position_to_pr([(word_id, start)])
+
+        # del pr_to_position[(pr_now[0], pr_now[1])]
+    #print(merges)
+    return vocab, merges
     raise NotImplementedError
