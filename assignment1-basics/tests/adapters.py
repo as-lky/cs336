@@ -690,7 +690,7 @@ class bytes_pair_number:
             else:
                 return self.pr[0] > other.pr[0]
         else:
-            return self.pr[2] < other.pr[2]
+            return self.pr[2] > other.pr[2]
 
 def run_train_bpe(
     input_path: str | os.PathLike,
@@ -750,9 +750,17 @@ def run_train_bpe(
 
     words_list = []
     for doc in docs:
+        if doc == '':
+            continue
         iter_ = re.finditer(PAT, doc)
         for _ in iter_:
-            words_list.append([__.encode() for __ in _.group()])
+            tmp = []
+            str_now = _.group().replace(" ", "\u0120") # why replace but no mentioned in pdf??
+            for __ in str_now:
+                tmp += [bytes([___]) for ___ in list(__.encode())]
+            #print(tmp)
+            words_list.append(tmp)
+#            words_list.append([__.encode() for __ in _.group()])
     del docs
 
     word_id = 0
@@ -770,6 +778,8 @@ def run_train_bpe(
 #                pr_to_position.append((word_id, i, i + 1))
             else :
                 dict_of_num[pr] = 1
+            if word_id == 188 and pr == (('n').encode(), ('i').encode()):
+                print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", word)
             if pr in pr_to_words_list:
                 if word_id in pr_to_words_list[pr]:
                     pr_to_words_list[pr][word_id] += 1
@@ -788,6 +798,8 @@ def run_train_bpe(
 
         word_id += 1
 
+    #print("DICT OF NUM : ", dict_of_num)
+
     for key, value in dict_of_num.items():
         prr = bytes_pair_number((key[0], key[1], value))
         heapq.heappush(heap, prr)
@@ -795,6 +807,8 @@ def run_train_bpe(
     heap_update = {} # pairs + int
 
     tmp = {}
+    
+    DDD = 0
 
     def update():
         for _ in tmp.keys():
@@ -830,6 +844,7 @@ def run_train_bpe(
                 else :
                     pr_to_words_list[pr][word_id] -= 1
             else:
+                print(pr, word_id, DDD)
                 raise NotImplementedError
         else :
             raise NotImplementedError
@@ -841,9 +856,13 @@ def run_train_bpe(
             while i < len(words_list[word_id]) - 1:
                 if (words_list[word_id][i], words_list[word_id][i + 1]) == pattern:
                     if i > 0:
+                        if (words_list[word_id][i - 1], words_list[word_id][i]) == (('n').encode(), ('i').encode()) and word_id == 188:
+                            print("!!!!!!!!!!!!!!!!!!", i, pattern) #### 两个要合并的东西相邻!
                         sub(word_id, (words_list[word_id][i - 1], words_list[word_id][i]))
                         add(word_id, (words_list[word_id][i - 1], pattern[0] + pattern[1]))
                     if i + 1 < len(words_list[word_id]) - 1:
+                        if (words_list[word_id][i + 1], words_list[word_id][i + 2]) == (('n').encode(), ('i').encode()) and word_id == 188:
+                            print("!!!!!!!!!!!!!!!!!!", i)
                         sub(word_id, (words_list[word_id][i + 1], words_list[word_id][i + 2]))
                         add(word_id, (pattern[0] + pattern[1], words_list[word_id][i + 2]))
                     #sub(word_id, pattern) no need
@@ -872,6 +891,7 @@ def run_train_bpe(
         # print("=============================")
         # print((pr_now[0] + pr_now[1]))
         # print(len(heap))
+        # print("DICT OF NUM : ", dict_of_num)
 
         if (pr_now[0], pr_now[1]) in heap_update:
             if dict_of_num[(pr_now[0], pr_now[1])] == 0:
@@ -886,7 +906,10 @@ def run_train_bpe(
         token_cnt += 1
 
         
+        print(pr_to_words_list[(('n').encode(), ('i').encode())])
         work((pr_now[0], pr_now[1]))
+        print(words_list[188])
+        DDD += 1
     #    print(dict_of_num)
           
         # for position in pr_to_position[(pr_now[0], pr_now[1])]:
