@@ -612,7 +612,44 @@ class Tokenizer:
                         word_new.clear()
                     tokens += [self.vocab_rev[_] for _ in word_now]
         return tokens
-#    def encode_iterable(self, iterable ) ???
+    
+    def encode_iterable(self, fiter): # file iterable <=> line!
+        for line in fiter:
+            if len(self.special_tokens) == 0 :
+                docs = [line]
+            else:
+                DEL = '|'.join([re.escape(_) for _ in self.special_tokens])
+                DEL = '(' + DEL + ')' # capture the parenthesis
+                docs = re.split(DEL, line)
+
+            for doc in docs:
+                if doc == '':
+                    continue
+                elif doc in self.special_tokens :
+                    yield(self.vocab_rev[doc.encode()])
+                else:
+                    words = re.finditer(self.PAT, doc)
+                    for word in words:
+                        word_now = []
+                        for eee in word.group():
+                            word_now += [bytes([_])for _ in list(eee.encode())]
+                        word_new = []
+                        for merge in self.merges:
+                            i = 0
+                            while i < len(word_now) - 1:
+                                if (word_now[i], word_now[i + 1]) == merge:
+                                    word_new.append(word_now[i] + word_now[i + 1])
+                                    i += 2
+                                else :
+                                    word_new.append(word_now[i])
+                                    i += 1
+                            if i == len(word_now) - 1:
+                                word_new.append(word_now[i])
+                            word_now, word_new = word_new, word_now
+                            word_new.clear()
+                        for _ in word_now:
+                            yield self.vocab_rev[_]
+        
     def decode(self, ids):
         result = bytes([])
         for id in ids:

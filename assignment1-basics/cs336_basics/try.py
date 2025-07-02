@@ -77,10 +77,16 @@
 # print(b)
 def w(f):
     for _ in f:
-        yield 1
-
+        yield _
+        return 1
 a = []
 with open("./cs336_basics/test.txt") as f:
+    print(type(w(f)))
     for _id in w(f):
+        print(type(w(f)))
         a.append(_id)
 print(a)
+# a = [1, 2, 3]
+# b = ['a', 'v']
+# a.append(b)
+# print(a)
