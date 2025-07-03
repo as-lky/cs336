@@ -98,7 +98,11 @@
 # a.append(b)
 # print(a)
 import torch
-a = [[1, 2, 3], [2, 4, 6]]
-a = torch.tensor(a)
-b = torch.LongTensor(torch.tensor([[0, 1, 0], [1, 1, 1], [0, 0, 0]]))
-print(a[b])
+# a = [[1, 2, 3], [2, 4, 6]]
+# a = torch.tensor(a)
+# b = torch.LongTensor(torch.tensor([[0, 1, 0], [1, 1, 1], [0, 0, 0]]))
+# print(a[b])
+b = torch.tensor([0] * 34)
+a = torch.ones(34, device=None, dtype=None)
+print(a)
+print(b)

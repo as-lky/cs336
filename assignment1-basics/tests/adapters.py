@@ -13,9 +13,8 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.linear import LkyLinear
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm
 from cs336_basics.tokenizer import Tokenizer
-from cs336_basics.embedding import LkyEmbedding
 
 def run_linear(
     d_in: int,
@@ -387,6 +386,8 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
+    rmsnorm_now = LkyRMSnorm(d_model, eps, weights=weights)
+    return rmsnorm_now(in_features)
     raise NotImplementedError
 
 
