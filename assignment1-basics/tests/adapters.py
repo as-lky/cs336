@@ -597,19 +597,49 @@ class Tokenizer:
                     
 #                    word_now = [_.encode() for _ in word.group()]
                     word_new = []
-                    for merge in self.merges:
-                        i = 0
-                        while i < len(word_now) - 1:
-                            if (word_now[i], word_now[i + 1]) == merge:
-                                word_new.append(word_now[i] + word_now[i + 1])
-                                i += 2
-                            else :
+#                    word_debug = word_now.copy()
+                    while True:
+                        min_id = len(self.vocab_rev) + 10
+                        for i in range(len(word_now) - 1):
+                            pattern = word_now[i] + word_now[i + 1]
+                            if pattern in self.vocab_rev:
+                                min_id = min(min_id, self.vocab_rev[pattern])
+#                        print(min_id)
+                        if min_id < len(self.vocab_rev):
+                            i = 0
+                            while i < len(word_now) - 1:
+                                if word_now[i] + word_now[i + 1] == self.vocab[min_id]:
+                                    word_new.append(word_now[i] + word_now[i + 1])
+                                    i += 2
+                                else :
+                                    word_new.append(word_now[i])
+                                    i += 1
+                            if i == len(word_now) - 1:
                                 word_new.append(word_now[i])
-                                i += 1
-                        if i == len(word_now) - 1:
-                            word_new.append(word_now[i])
-                        word_now, word_new = word_new, word_now
-                        word_new.clear()
+                            word_now, word_new = word_new, word_now
+                            word_new.clear()
+                        else :
+                            break
+                    # word_debug, word_now = word_now, word_debug
+                    # for merge in self.merges:
+                    #     i = 0
+                    #     while i < len(word_now) - 1:
+                    #         if (word_now[i], word_now[i + 1]) == merge:
+                    #             word_new.append(word_now[i] + word_now[i + 1])
+                    #             i += 2
+                    #         else :
+                    #             word_new.append(word_now[i])
+                    #             i += 1
+                    #     if i == len(word_now) - 1:
+                    #         word_new.append(word_now[i])
+                    #     word_now, word_new = word_new, word_now
+                    #     word_new.clear()
+                    # print(word_now, word_debug)
+                    # for i in self.merges:
+                    #     if i == (b'\xf0', b'\x9f'):
+                    #         print("=============")
+                    # print(self.vocab_rev[(b'\xf0', b'\x9f')])
+                    # assert word_now == word_debug
                     tokens += [self.vocab_rev[_] for _ in word_now]
         return tokens
     
@@ -634,19 +664,41 @@ class Tokenizer:
                         for eee in word.group():
                             word_now += [bytes([_])for _ in list(eee.encode())]
                         word_new = []
-                        for merge in self.merges:
-                            i = 0
-                            while i < len(word_now) - 1:
-                                if (word_now[i], word_now[i + 1]) == merge:
-                                    word_new.append(word_now[i] + word_now[i + 1])
-                                    i += 2
-                                else :
+                        while True:
+                            min_id = len(self.vocab_rev) + 10
+                            for i in range(len(word_now) - 1):
+                                pattern = word_now[i] + word_now[i + 1]
+                                if pattern in self.vocab_rev:
+                                    min_id = min(min_id, self.vocab_rev[pattern])
+    #                        print(min_id)
+                            if min_id < len(self.vocab_rev):
+                                i = 0
+                                while i < len(word_now) - 1:
+                                    if word_now[i] + word_now[i + 1] == self.vocab[min_id]:
+                                        word_new.append(word_now[i] + word_now[i + 1])
+                                        i += 2
+                                    else :
+                                        word_new.append(word_now[i])
+                                        i += 1
+                                if i == len(word_now) - 1:
                                     word_new.append(word_now[i])
-                                    i += 1
-                            if i == len(word_now) - 1:
-                                word_new.append(word_now[i])
-                            word_now, word_new = word_new, word_now
-                            word_new.clear()
+                                word_now, word_new = word_new, word_now
+                                word_new.clear()
+                            else :
+                                break
+                        # for merge in self.merges:
+                        #     i = 0
+                        #     while i < len(word_now) - 1:
+                        #         if (word_now[i], word_now[i + 1]) == merge:
+                        #             word_new.append(word_now[i] + word_now[i + 1])
+                        #             i += 2
+                        #         else :
+                        #             word_new.append(word_now[i])
+                        #             i += 1
+                        #     if i == len(word_now) - 1:
+                        #         word_new.append(word_now[i])
+                        #     word_now, word_new = word_new, word_now
+                        #     word_new.clear()
                         for _ in word_now:
                             yield self.vocab_rev[_]
         
@@ -727,6 +779,7 @@ def run_train_bpe(
 
     with open(input_path, 'r') as f:
         text = f.read()
+    
     DEL = '|'.join([re.escape(_) for _ in special_tokens])
     docs = re.split(DEL, text)
     del text
@@ -755,7 +808,8 @@ def run_train_bpe(
         iter_ = re.finditer(PAT, doc)
         for _ in iter_:
             tmp = []
-            str_now = _.group().replace(" ", "\u0120") # why replace but no mentioned in pdf??
+#            str_now = _.group().replace(" ", "\u0120") # why replace but no mentioned in pdf??
+            str_now = _.group()
             for __ in str_now:
                 tmp += [bytes([___]) for ___ in list(__.encode())]
             #print(tmp)
@@ -778,8 +832,8 @@ def run_train_bpe(
 #                pr_to_position.append((word_id, i, i + 1))
             else :
                 dict_of_num[pr] = 1
-            if word_id == 188 and pr == (('n').encode(), ('i').encode()):
-                print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", word)
+            # if word_id == 188 and pr == (('n').encode(), ('i').encode()):
+            #     print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", word)
             if pr in pr_to_words_list:
                 if word_id in pr_to_words_list[pr]:
                     pr_to_words_list[pr][word_id] += 1
@@ -835,6 +889,7 @@ def run_train_bpe(
         if pr in dict_of_num:
             dict_of_num[pr] -= 1
         else:
+  #          print(pr, DDD, word_id)
             raise NotImplementedError
         
         if pr in pr_to_words_list:
@@ -844,7 +899,7 @@ def run_train_bpe(
                 else :
                     pr_to_words_list[pr][word_id] -= 1
             else:
-                print(pr, word_id, DDD)
+       #         print(pr, word_id, DDD)
                 raise NotImplementedError
         else :
             raise NotImplementedError
@@ -853,18 +908,24 @@ def run_train_bpe(
         for word_id in pr_to_words_list[pattern].keys():
             new_word = []
             i = 0
+            front_consideration = True
             while i < len(words_list[word_id]) - 1:
                 if (words_list[word_id][i], words_list[word_id][i + 1]) == pattern:
-                    if i > 0:
-                        if (words_list[word_id][i - 1], words_list[word_id][i]) == (('n').encode(), ('i').encode()) and word_id == 188:
-                            print("!!!!!!!!!!!!!!!!!!", i, pattern) #### 两个要合并的东西相邻!
+                    if i > 0 and front_consideration == True:
+                        # if (words_list[word_id][i - 1], words_list[word_id][i]) == (('n').encode(), ('i').encode()) and word_id == 188:
+                        #     print("!!!!!!!!!!!!!!!!!!", i, pattern) #### TODO : 两个要合并的东西相邻!
                         sub(word_id, (words_list[word_id][i - 1], words_list[word_id][i]))
                         add(word_id, (words_list[word_id][i - 1], pattern[0] + pattern[1]))
-                    if i + 1 < len(words_list[word_id]) - 1:
-                        if (words_list[word_id][i + 1], words_list[word_id][i + 2]) == (('n').encode(), ('i').encode()) and word_id == 188:
-                            print("!!!!!!!!!!!!!!!!!!", i)
+                    if i + 2 < len(words_list[word_id]) - 1 and (words_list[word_id][i + 2], words_list[word_id][i + 3]) == pattern:
+                        front_consideration = False
+                        sub(word_id, (words_list[word_id][i + 1], words_list[word_id][i + 2]))
+                        add(word_id, (pattern[0] + pattern[1], pattern[0] + pattern[1]))
+                    elif i + 1 < len(words_list[word_id]) - 1:
+                        # if (words_list[word_id][i + 1], words_list[word_id][i + 2]) == (('n').encode(), ('i').encode()) and word_id == 188:
+                        #     print("!!!!!!!!!!!!!!!!!!", i)
                         sub(word_id, (words_list[word_id][i + 1], words_list[word_id][i + 2]))
                         add(word_id, (pattern[0] + pattern[1], words_list[word_id][i + 2]))
+                        front_consideration = True
                     #sub(word_id, pattern) no need
                     new_word.append(words_list[word_id][i] + words_list[word_id][i + 1])
                     i += 2
@@ -880,6 +941,7 @@ def run_train_bpe(
 #    A = ("Ġ".encode(), "t".encode())
 #    print(dict_of_num[A])
 
+    print(token_cnt)
     while True:
         if token_cnt >= vocab_size:
             break
@@ -906,9 +968,9 @@ def run_train_bpe(
         token_cnt += 1
 
         
-        print(pr_to_words_list[(('n').encode(), ('i').encode())])
+   #     print(pr_to_words_list[(('n').encode(), ('i').encode())])
         work((pr_now[0], pr_now[1]))
-        print(words_list[188])
+   #     print(words_list[188])
         DDD += 1
     #    print(dict_of_num)
           
@@ -928,6 +990,13 @@ def run_train_bpe(
         #         del end_position_to_pr([(word_id, start)])
 
         # del pr_to_position[(pr_now[0], pr_now[1])]
-    #print(merges)
+    print(merges)
+    merges_new = []
+    for merge in merges:
+        print(merge[0], merge[1])
+        merge_new = (merge[0].decode().replace(' ', '\u0120').encode(),
+                 merge[1].decode().replace(' ', '\u0120').encode())
+        merges_new.append(merge_new)
+    merges = merges_new
     return vocab, merges
     raise NotImplementedError

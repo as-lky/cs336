@@ -75,17 +75,20 @@
 # a = '\u00d2'
 # b = a.encode()
 # print(b)
-def w(f):
-    for _ in f:
-        yield _
-        return 1
-a = []
-with open("./cs336_basics/test.txt") as f:
-    print(type(w(f)))
-    for _id in w(f):
-        print(type(w(f)))
-        a.append(_id)
-print(a)
+# def w(f):
+#     for _ in f:
+#         yield _
+#         return 1
+# a = []
+# with open("./cs336_basics/test.txt") as f:
+#     print(type(w(f)))
+#     for _id in w(f):
+#         print(type(w(f)))
+#         a.append(_id)
+# print(a)
+print(list('!'.encode()))
+print(ord('¸'))
+print(b'\xf0'.decode(), b'\x9f'.decode())
 # a = [1, 2, 3]
 # b = ['a', 'v']
 # a.append(b)
