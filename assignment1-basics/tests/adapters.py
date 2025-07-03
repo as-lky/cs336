@@ -15,6 +15,7 @@ from einops import einsum, rearrange
 
 from cs336_basics.linear import LkyLinear
 from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.embedding import LkyEmbedding
 
 def run_linear(
     d_in: int,
@@ -57,7 +58,8 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-
+    embedding_now = LkyEmbedding(vocab_size, d_model, weights=weights)
+    return embedding_now(token_ids)
     raise NotImplementedError
 
 
@@ -802,7 +804,6 @@ def run_train_bpe(
         vocab[token_cnt] = (pr_now[0], pr_now[1])
         token_cnt += 1
 
-        
    #     print(pr_to_words_list[(('n').encode(), ('i').encode())])
         work((pr_now[0], pr_now[1]))
    #     print(words_list[188])

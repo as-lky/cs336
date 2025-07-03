@@ -89,11 +89,16 @@
 #print(list('!'.encode()))
 #print(ord('¸'))
 #print(b'\xf0'.decode(), b'\x9f'.decode())
-import regex as re
-a = re.splititer('( )', 'adssada awd awd adw sa d')
-for _ in a:
-    print(_, end='')
+# import regex as re
+# a = re.splititer('( )', 'adssada awd awd adw sa d')
+# for _ in a:
+#     print(_, end='')
 # a = [1, 2, 3]
 # b = ['a', 'v']
 # a.append(b)
 # print(a)
+import torch
+a = [[1, 2, 3], [2, 4, 6]]
+a = torch.tensor(a)
+b = torch.LongTensor(torch.tensor([[0, 1, 0], [1, 1, 1], [0, 0, 0]]))
+print(a[b])
