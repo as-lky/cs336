@@ -86,9 +86,13 @@
 #         print(type(w(f)))
 #         a.append(_id)
 # print(a)
-print(list('!'.encode()))
-print(ord('¸'))
-print(b'\xf0'.decode(), b'\x9f'.decode())
+#print(list('!'.encode()))
+#print(ord('¸'))
+#print(b'\xf0'.decode(), b'\x9f'.decode())
+import regex as re
+a = re.splititer('( )', 'adssada awd awd adw sa d')
+for _ in a:
+    print(_, end='')
 # a = [1, 2, 3]
 # b = ['a', 'v']
 # a.append(b)
