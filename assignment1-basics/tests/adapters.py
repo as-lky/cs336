@@ -13,7 +13,7 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax, LkyRoPE
 from cs336_basics.tokenizer import Tokenizer
 
 def run_linear(
@@ -210,6 +210,8 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
+    rope_now = LkyRoPE(theta, d_k, max_seq_len)
+    return rope_now(in_query_or_key, token_positions)
     raise NotImplementedError
 
 

@@ -76,10 +76,25 @@ class LkyFFN(torch.nn.Module):
 class LkyRoPE(torch.nn.Module):
     def __init__(self, theta, d_k, max_seq_len, device=None):
         super().__init__()
+        assert not (d_k & 1)
         self.theta = theta
         self.d_k = d_k
         self.max_seq_len = max_seq_len
-        
+        frac_b = 1.0 / (theta ** (torch.arange(0, d_k, 2).float() / d_k))
+        frac_t = torch.arange(max_seq_len)
+        buffer = einsum(frac_b, frac_t, "d_k_2, seq_len -> seq_len d_k_2")
+        buffer.to(device)
+        self.register_buffer('weights', buffer, persistent=False)
+
+    def forward(self, x, token_positions):
+        weights = self.get_buffer('weights')
+        cos = torch.cos(weights)[token_positions]
+        sin = torch.sin(weights)[token_positions]
+        y = rearrange(x, '... (d_k_2 l) -> ... d_k_2 l', l=2)
+        return rearrange(torch.stack(([y[..., 0] * cos - y[..., 1] * sin,
+                    y[..., 0] * sin + y[..., 1] * cos]), dim=-1), '... d_k_2 l -> ... (d_k_2 l)', l=2)
+
+
 class LkySoftmax(torch.nn.Module):
     def __init__(self):
         super().__init__()
