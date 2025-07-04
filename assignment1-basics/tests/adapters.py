@@ -13,7 +13,7 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax
 from cs336_basics.tokenizer import Tokenizer
 
 def run_linear(
@@ -34,7 +34,7 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-    linear_now = LkyLinear(d_in, d_out, weights=rearrange(weights, "d_out d_in -> d_in d_out"))
+    linear_now = LkyLinear(d_in, d_out, weights=weights)
     return linear_now(in_features)
     raise NotImplementedError
 
@@ -91,6 +91,8 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
+    ffn_now = LkyFFN(d_model, d_ff, w1_weight, w2_weight, w3_weight)
+    return ffn_now(in_features)
     raise NotImplementedError
 
 
@@ -441,6 +443,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
+    return LkySoftmax()(in_features, dim)
     raise NotImplementedError
 
 

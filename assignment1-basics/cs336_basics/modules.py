@@ -19,12 +19,12 @@ class LkyEmbedding(torch.nn.Module):
 
 
 class LkyLinear(torch.nn.Module):
-    def __init__(self, in_features, out_features, device=None, dtype=None, weights=None): # the weights must be row-major
+    def __init__(self, in_features, out_features, device=None, dtype=None, weights=None): # the weights must be col-major (d_out d_in)
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         if weights is not None:
-            self.weights = weights
+            self.weights = rearrange(weights, "d_out d_in -> d_in d_out")
         else:
             self.weights = torch.nn.Parameter(torch.empty(size=(in_features, out_features), device=device, dtype=dtype))
             ceta = (2.0 / (in_features + out_features)) ** 0.5
@@ -56,3 +56,34 @@ class LkyRMSnorm(torch.nn.Module):
                     ) * x
         x = x.to(in_dtype)
         return y
+
+class LkyFFN(torch.nn.Module):
+    def __init__(self, d_model, d_ff=None, w1_weights=None, w2_weights=None, w3_weights=None, device=None, dtype=None):
+        super().__init__()
+        self.d_model = d_model
+        if d_ff is not None:
+            self.d_ff = d_ff
+        else:
+            self.d_ff = (8 * d_model // (3 * 64) + 1 ) * 64
+        self.w1 = LkyLinear(d_model, d_ff, device, dtype, w1_weights)
+        self.w2 = LkyLinear(d_ff, d_model, device, dtype, w2_weights)
+        self.w3 = LkyLinear(d_model, d_ff, device, dtype, w3_weights)
+
+    def forward(self, x):
+        y = self.w1(x)
+        return self.w2(y * torch.sigmoid(y) * self.w3(x))
+
+class LkyRoPE(torch.nn.Module):
+    def __init__(self, theta, d_k, max_seq_len, device=None):
+        super().__init__()
+        self.theta = theta
+        self.d_k = d_k
+        self.max_seq_len = max_seq_len
+        
+class LkySoftmax(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x, dim):
+        y = x - torch.max(x, dim=dim, keepdim=True).values
+        return torch.exp(y) / torch.sum(torch.exp(y), dim=dim, keepdim=True)
