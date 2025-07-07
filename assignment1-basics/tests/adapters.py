@@ -152,7 +152,11 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    
+    d_k = q_proj_weight.shape[-2]
+    d_v = v_proj_weight.shape[-2]
+    d_in = q_proj_weight.shape[-1]
+    multihead_attention_now = LkyMultiheadAttention(d_model, num_heads, d_k, d_v, d_in, q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight)
+    return multihead_attention_now(in_features)
     raise NotImplementedError
 
 
@@ -193,6 +197,15 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
+    
+    d_k = q_proj_weight.shape[-2]
+    d_v = v_proj_weight.shape[-2]
+    d_in = q_proj_weight.shape[-1]
+
+    assert d_k % num_heads == 0
+
+    multihead_attention_now = LkyMultiheadAttention(d_model, num_heads, d_k, d_v, d_in, q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight, theta=theta, max_seq_len=max_seq_len)
+    return multihead_attention_now(in_features, token_positions)
     raise NotImplementedError
 
 

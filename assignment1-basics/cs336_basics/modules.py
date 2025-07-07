@@ -110,8 +110,10 @@ def lkysoftmax(in_features, dim):
 def lkyattention(Q, K, V, mask=None):
     # no need for 'attention' class?
 
-    assert K.shape[-1] == V.shape[-1]
+    assert K.shape[-2] == V.shape[-2] # keys == values
     d_k = Q.shape[-1]
+    d_v = V.shape[-1]
+
     tmp = einsum(Q, K, "... queries d_k, ... keys d_k -> ... queries keys")
     if mask is not None:
        tmp = torch.where(~mask, float('-inf'), tmp)
@@ -119,33 +121,34 @@ def lkyattention(Q, K, V, mask=None):
 
 
 class LkyMultiheadAttention(torch.nn.Module):
-    def __init__(self, d_model, num_heads, d_k_v, d_in, seq_len, q_weights=None, k_weights=None, v_weights=None, o_weights=None, device=None):
+    def __init__(self, d_model, num_heads, d_k, d_v, d_in, q_weights=None, k_weights=None, v_weights=None, o_weights=None, device=None, theta=None, max_seq_len=None):
         super().__init__()
         self.d_model = d_model
-        self.num_heads = num_heads
-        self.d_k_v = d_k_v
+        self.num_heads = num_heads # no use
+        self.d_k = d_k
+        self.d_v = d_v
         self.d_in = d_in
-        self.seq_len = seq_len
-        self.q = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=q_weights)
-        self.k = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=k_weights)
-        self.v = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=v_weights)
-        self.o = LkyLinear(d_k_v, d_model, device=device, dtype=torch.float32, weights=o_weights)
+        self.q = LkyLinear(d_in, d_k, device=device, dtype=torch.float32, weights=q_weights)
+        self.k = LkyLinear(d_in, d_k, device=device, dtype=torch.float32, weights=k_weights)
+        self.v = LkyLinear(d_in, d_v, device=device, dtype=torch.float32, weights=v_weights)
+        self.o = LkyLinear(d_v, d_model, device=device, dtype=torch.float32, weights=o_weights)
+        if theta is not None:
+            self.rope = LkyRoPE(theta, d_k // num_heads, max_seq_len, device)
+        else :
+            self.rope = None
 
-    def forward(self, x):
-        d_k = q_proj_weight.shape[-2]
-        d_v = v_proj_weight.shape[-2]
-        assert d_k == d_v
-        seq_len = in_features.shape[-2]
-
-        big_matrix = torch.cat([q_proj_weight, k_proj_weight, v_proj_weight], dim=-2)
-        big_matrix = einsum(big_matrix, in_features, '... big_dim d_in, ... seq_len d_in -> ... seq_len big_dim')
+    def forward(self, x, token_positions=None):
+        d_k = self.d_k
+        seq_len = x.shape[-2]
+        big_matrix = torch.cat([self.q.weights, self.k.weights, self.v.weights], dim=-1)
+        big_matrix = einsum(big_matrix, x, '... d_in big_dim, ... seq_len d_in -> ... seq_len big_dim')
         
         q_proj, k_proj, v_proj = big_matrix[..., 0:d_k], big_matrix[..., d_k:(2*d_k)], big_matrix[..., (2*d_k):]
-        
-        q_proj = rearrange(q_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
-        k_proj = rearrange(k_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
-        v_proj = rearrange(v_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
+        q_proj = rearrange(q_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=self.num_heads) # else = d_k / num_heads
+        k_proj = rearrange(k_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=self.num_heads) # else = d_k / num_heads
+        v_proj = rearrange(v_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=self.num_heads) # here 'else' may be unequal to 'else' of q, k  else = d_v / num_heads
+        if self.rope is not None:
+            q_proj = self.rope(q_proj, token_positions)
+            k_proj = self.rope(k_proj, token_positions)
         mask_now = torch.tril(torch.ones(seq_len, seq_len, dtype=bool))
-        now = run_scaled_dot_product_attention(q_proj, k_proj, v_proj, mask_now)
-        now = rearrange(now, 'num_heads ... else -> ... (num_heads else)')
-        
+        return self.o(rearrange(lkyattention(q_proj, k_proj, v_proj, mask_now), 'num_heads ... else -> ... (num_heads else)'))
