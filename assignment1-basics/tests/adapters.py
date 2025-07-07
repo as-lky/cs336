@@ -13,7 +13,8 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax, LkyRoPE
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax, LkyRoPE, LkyMultiheadAttention
+from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
 def run_linear(
@@ -114,6 +115,9 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
+
+    # no need for 'attention' class?
+    return lkyattention(Q, K, V, mask)
     raise NotImplementedError
 
 
@@ -148,6 +152,7 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
+    
     raise NotImplementedError
 
 
@@ -445,7 +450,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    return LkySoftmax()(in_features, dim)
+    return lkysoftmax(in_features, dim)
     raise NotImplementedError
 
 

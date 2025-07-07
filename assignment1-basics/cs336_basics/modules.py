@@ -78,7 +78,7 @@ class LkyRoPE(torch.nn.Module):
         super().__init__()
         assert not (d_k & 1)
         self.theta = theta
-        self.d_k = d_k
+        self.d_k = d_k,
         self.max_seq_len = max_seq_len
         frac_b = 1.0 / (theta ** (torch.arange(0, d_k, 2).float() / d_k))
         frac_t = torch.arange(max_seq_len)
@@ -102,3 +102,50 @@ class LkySoftmax(torch.nn.Module):
     def forward(self, x, dim):
         y = x - torch.max(x, dim=dim, keepdim=True).values
         return torch.exp(y) / torch.sum(torch.exp(y), dim=dim, keepdim=True)
+
+
+def lkysoftmax(in_features, dim):
+    return LkySoftmax()(in_features, dim)
+
+def lkyattention(Q, K, V, mask=None):
+    # no need for 'attention' class?
+
+    assert K.shape[-1] == V.shape[-1]
+    d_k = Q.shape[-1]
+    tmp = einsum(Q, K, "... queries d_k, ... keys d_k -> ... queries keys")
+    if mask is not None:
+       tmp = torch.where(~mask, float('-inf'), tmp)
+    return einsum(lkysoftmax(tmp / (d_k ** 0.5), dim=-1) , V, '... queries keys, ... keys d_v -> ... queries d_v')
+
+
+class LkyMultiheadAttention(torch.nn.Module):
+    def __init__(self, d_model, num_heads, d_k_v, d_in, seq_len, q_weights=None, k_weights=None, v_weights=None, o_weights=None, device=None):
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_k_v = d_k_v
+        self.d_in = d_in
+        self.seq_len = seq_len
+        self.q = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=q_weights)
+        self.k = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=k_weights)
+        self.v = LkyLinear(d_in, d_k_v, device=device, dtype=torch.float32, weights=v_weights)
+        self.o = LkyLinear(d_k_v, d_model, device=device, dtype=torch.float32, weights=o_weights)
+
+    def forward(self, x):
+        d_k = q_proj_weight.shape[-2]
+        d_v = v_proj_weight.shape[-2]
+        assert d_k == d_v
+        seq_len = in_features.shape[-2]
+
+        big_matrix = torch.cat([q_proj_weight, k_proj_weight, v_proj_weight], dim=-2)
+        big_matrix = einsum(big_matrix, in_features, '... big_dim d_in, ... seq_len d_in -> ... seq_len big_dim')
+        
+        q_proj, k_proj, v_proj = big_matrix[..., 0:d_k], big_matrix[..., d_k:(2*d_k)], big_matrix[..., (2*d_k):]
+        
+        q_proj = rearrange(q_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
+        k_proj = rearrange(k_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
+        v_proj = rearrange(v_proj, '... seq_len (num_heads else) -> num_heads ... seq_len else', num_heads=num_heads)
+        mask_now = torch.tril(torch.ones(seq_len, seq_len, dtype=bool))
+        now = run_scaled_dot_product_attention(q_proj, k_proj, v_proj, mask_now)
+        now = rearrange(now, 'num_heads ... else -> ... (num_heads else)')
+        
