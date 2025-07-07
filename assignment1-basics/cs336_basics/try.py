@@ -106,11 +106,30 @@ import torch
 # a = torch.ones(34, device=None, dtype=None)
 # print(a)
 # print(b)
-class w(torch.nn.Module):
-    def __init__(self, x):
-        super().__init__()
-        self.xx = x
-    def forward(self, w):
-        return self.xx * w
-A = w(10)
-print(A(10))
+# class w(torch.nn.Module):
+#     def __init__(self, x):
+#         super().__init__()
+#         self.xx = x
+#     def forward(self, w):
+#         return self.xx * w
+# A = w(10)
+# print(A(10))
+# def ww(a):
+#     a = a * 2
+#     return a
+# def ss(a):
+#     a = ['1', '2']
+#     return a
+
+# A = torch.tensor([1, 2, 3])
+# B = ss(A)
+# print(B)
+# print(A)
+
+# GG = 10
+# def func():
+#     print(GG)
+# GG = 5
+# func()
+a = torch.tensor([1, 2, 3])
+print(a[None])

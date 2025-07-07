@@ -64,7 +64,7 @@ class LkyFFN(torch.nn.Module):
         if d_ff is not None:
             self.d_ff = d_ff
         else:
-            self.d_ff = (8 * d_model // (3 * 64) + 1 ) * 64
+            self.d_ff = (8 * d_model // (3 * 64) + 1 ) * 64 # align to 64
         self.w1 = LkyLinear(d_model, d_ff, device, dtype, w1_weights)
         self.w2 = LkyLinear(d_ff, d_model, device, dtype, w2_weights)
         self.w3 = LkyLinear(d_model, d_ff, device, dtype, w3_weights)
@@ -86,10 +86,19 @@ class LkyRoPE(torch.nn.Module):
         buffer.to(device)
         self.register_buffer('weights', buffer, persistent=False)
 
-    def forward(self, x, token_positions):
+    def forward(self, x, token_positions=None):
         weights = self.get_buffer('weights')
+        if token_positions is None:
+            token_positions = torch.arange(x.shape[-2], dtype=torch.int) * torch.ones(x.shape[:-1], dtype=torch.int)
+
         cos = torch.cos(weights)[token_positions]
         sin = torch.sin(weights)[token_positions]
+        # print("========================================")
+        # print(token_positions.shape)
+        # print(weights.shape)
+        # print(cos.shape)
+        # print(x.shape)
+        # 原来token_positions还有切片的作用!!! 妙!
         y = rearrange(x, '... (d_k_2 l) -> ... d_k_2 l', l=2)
         return rearrange(torch.stack(([y[..., 0] * cos - y[..., 1] * sin,
                     y[..., 0] * sin + y[..., 1] * cos]), dim=-1), '... d_k_2 l -> ... (d_k_2 l)', l=2)
@@ -124,7 +133,7 @@ class LkyMultiheadAttention(torch.nn.Module):
     def __init__(self, d_model, num_heads, d_k, d_v, d_in, q_weights=None, k_weights=None, v_weights=None, o_weights=None, device=None, theta=None, max_seq_len=None):
         super().__init__()
         self.d_model = d_model
-        self.num_heads = num_heads # no use
+        self.num_heads = num_heads
         self.d_k = d_k
         self.d_v = d_v
         self.d_in = d_in
@@ -152,3 +161,18 @@ class LkyMultiheadAttention(torch.nn.Module):
             k_proj = self.rope(k_proj, token_positions)
         mask_now = torch.tril(torch.ones(seq_len, seq_len, dtype=bool))
         return self.o(rearrange(lkyattention(q_proj, k_proj, v_proj, mask_now), 'num_heads ... else -> ... (num_heads else)'))
+    
+class LkyTransformerBlock(torch.nn.Module):
+    # d_v == d_k == d_model == d_in
+    def __init__(self, d_model, num_heads, d_ff, max_seq_len, theta, weights, device=None):
+        super().__init__()
+        self.rmsnorm1 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln1.weight'])
+        self.multiheadattention = LkyMultiheadAttention(d_model, num_heads, d_model, d_model, d_model,
+                         weights['attn.q_proj.weight'], weights['attn.k_proj.weight'], 
+                         weights['attn.v_proj.weight'], weights['attn.output_proj.weight'], device, theta, max_seq_len)
+        self.rmsnorm2 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln2.weight'])
+        self.ffn = LkyFFN(d_model, d_ff, weights['ffn.w1.weight'], weights['ffn.w2.weight'], weights['ffn.w3.weight'], device, torch.float32)
+
+    def forward(self, x):
+        y = self.multiheadattention(self.rmsnorm1(x)) + x
+        return self.ffn(self.rmsnorm2(y)) + y

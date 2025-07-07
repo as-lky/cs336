@@ -13,7 +13,7 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkySoftmax, LkyRoPE, LkyMultiheadAttention
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
@@ -303,6 +303,8 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
+    transformer_block_now = LkyTransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta, weights)
+    return transformer_block_now(in_features)
     raise NotImplementedError
 
 
