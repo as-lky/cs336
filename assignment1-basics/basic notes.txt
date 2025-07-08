@@ -1,0 +1,50 @@
+1. a.不显示字符 b.一个为空(作为str的object的值的描述) 一个是对其作为object的描述 c.看起来像没有该字符一样 因为不显示
+2. a.太长了 b.一个字符多个byte
+
+中文貌似是按笔画来划token? 这样BPE效果没有道理啊? 并没有，最基本元素都是一个字符
+迭代器的实现
+
+
+resources accouting:
+a. 
+input embedding:  50000 * 1600 = 8e7
+block: Q K V O: 4 * 1600 * 1600 = 1e7
+	   rope :  1024 * 800 = 8e5
+	norm: 2 * 1600 = 3200
+	ffn : 3 * 1600 * 6400 = 3e7
+all block: 2e9
+norm: 1600
+linear: 1600 * 50000 = 8e7
+all : 约2.2e9 共8.2GB
+
+b.
+input embedding:  0
+block: norm: ≈0
+Q K V O:  1024 * 1600 * 1600 * 2 * 4 = 2e10
+ rope :  2 * 1600 * 1024 * 1600 * 2 = 1e10
+QKVO: 1024 * 1024 * 1600 * 2 + 1024 * 1600 * 1600 * 2 = 9e10
+ffn: 1600 * 6400 * 1024 * 2 * 3 =  6e10
+all block : 8.64e12
+
+norm: 0
+linear: 1600 * 50000 * 1024 * 2 = 1.6e12
+all : 约1.1e13
+
+c. 
+transformer block
+
+d.
+A = len * d * d * 14  + len * len * d * 2 + d * dff * len * 6
+A * num_layers
+linear d * vocab size * len * 2
+for small : 3e11 : 8e10
+for medium: 6.48e12 : 1.6e12
+for large: ...
+
+e.
+8e13 : 2.6e12
+
+lr太大了会爆炸
+
+
+
