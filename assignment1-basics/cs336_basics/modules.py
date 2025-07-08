@@ -113,7 +113,7 @@ class LkySoftmax(torch.nn.Module):
         return torch.exp(y) / torch.sum(torch.exp(y), dim=dim, keepdim=True)
 
 
-def lkysoftmax(in_features, dim):
+def lkysoftmax(in_features, dim=-1):
     return LkySoftmax()(in_features, dim)
 
 def lkyattention(Q, K, V, mask=None):
@@ -164,15 +164,59 @@ class LkyMultiheadAttention(torch.nn.Module):
     
 class LkyTransformerBlock(torch.nn.Module):
     # d_v == d_k == d_model == d_in
-    def __init__(self, d_model, num_heads, d_ff, max_seq_len, theta, weights, device=None):
+    def __init__(self, d_model, num_heads, d_ff, max_seq_len, theta, weights=None, device=None):
         super().__init__()
-        self.rmsnorm1 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln1.weight'])
-        self.multiheadattention = LkyMultiheadAttention(d_model, num_heads, d_model, d_model, d_model,
-                         weights['attn.q_proj.weight'], weights['attn.k_proj.weight'], 
-                         weights['attn.v_proj.weight'], weights['attn.output_proj.weight'], device, theta, max_seq_len)
-        self.rmsnorm2 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln2.weight'])
-        self.ffn = LkyFFN(d_model, d_ff, weights['ffn.w1.weight'], weights['ffn.w2.weight'], weights['ffn.w3.weight'], device, torch.float32)
+        if weights is None:
+            self.rmsnorm1 = LkyRMSnorm(d_model, dtype=torch.float32, device=device)
+            self.multiheadattention = LkyMultiheadAttention(d_model, num_heads, d_model, d_model, d_model,
+                         device=device, theta=theta, max_seq_len=max_seq_len)
+            self.rmsnorm2 = LkyRMSnorm(d_model, dtype=torch.float32, device=device)
+            self.ffn = LkyFFN(d_model, d_ff, device=device, dtype=torch.float32)
+        else:
+            self.rmsnorm1 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln1.weight'])
+            self.multiheadattention = LkyMultiheadAttention(d_model, num_heads, d_model, d_model, d_model,
+                            weights['attn.q_proj.weight'], weights['attn.k_proj.weight'], 
+                            weights['attn.v_proj.weight'], weights['attn.output_proj.weight'], device, theta, max_seq_len)
+            self.rmsnorm2 = LkyRMSnorm(d_model, dtype=torch.float32, device=device, weights=weights['ln2.weight'])
+            self.ffn = LkyFFN(d_model, d_ff, weights['ffn.w1.weight'], weights['ffn.w2.weight'], weights['ffn.w3.weight'], device, torch.float32)
 
     def forward(self, x):
         y = self.multiheadattention(self.rmsnorm1(x)) + x
         return self.ffn(self.rmsnorm2(y)) + y
+
+class LkyTransformer(torch.nn.Module):
+    def __init__(self, vocab_size, context_length, num_layers, d_model=1024, dff=None, num_heads=32, theta=10000, device=None, weights=None):
+        super().__init__()
+        if weights is not None:
+            self.input_embedding = LkyEmbedding(vocab_size, d_model, device=device, dtype=torch.float32, weights=weights['token_embeddings.weight'])
+            self.block = []
+            for i in range(num_layers):
+                weights_now = {}
+                weights_now['attn.q_proj.weight'] = weights[f'layers.{i}.attn.q_proj.weight']
+                weights_now['attn.k_proj.weight'] = weights[f'layers.{i}.attn.k_proj.weight']
+                weights_now['attn.v_proj.weight'] = weights[f'layers.{i}.attn.v_proj.weight']
+                weights_now['attn.output_proj.weight'] = weights[f'layers.{i}.attn.output_proj.weight']
+                weights_now['ln1.weight'] = weights[f'layers.{i}.ln1.weight']
+                weights_now['ln2.weight'] = weights[f'layers.{i}.ln2.weight']
+                weights_now['ffn.w1.weight'] = weights[f'layers.{i}.ffn.w1.weight']
+                weights_now['ffn.w2.weight'] = weights[f'layers.{i}.ffn.w2.weight']
+                weights_now['ffn.w3.weight'] = weights[f'layers.{i}.ffn.w3.weight']
+                self.block.append(LkyTransformerBlock(d_model, num_heads, dff, context_length, theta, device=device, weights=weights_now))
+            self.rmsnorm = LkyRMSnorm(d_model, device=device, dtype=torch.float32, weights=weights['ln_final.weight'])
+            self.output_embedding = LkyLinear(d_model, vocab_size, device=device, dtype=torch.float32, weights=weights['lm_head.weight'])
+        else:
+            self.input_embedding = LkyEmbedding(vocab_size, d_model, device=device, dtype=torch.float32)
+            self.block = []
+            for i in range(num_layers):
+                self.block.append(LkyTransformerBlock(d_model, num_heads, dff, context_length, theta, device=device))
+            self.rmsnorm = LkyRMSnorm(d_model, device=device, dtype=torch.float32)
+            self.output_embedding = LkyLinear(d_model, vocab_size, device=device, dtype=torch.float32)
+
+    def forward(self, x):
+        x = self.input_embedding(x)
+        for block in self.block:
+            x = block(x)
+        x = self.rmsnorm(x)
+        x = self.output_embedding(x)
+        return x # calculate loss without softmax!
+        return lkysoftmax(x)

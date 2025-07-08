@@ -13,7 +13,7 @@ import heapq
 from torch import Tensor
 from einops import einsum, rearrange
 
-from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock
+from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock, LkyTransformer
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
@@ -387,6 +387,8 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
+    transformer_now = LkyTransformer(vocab_size, context_length, num_layers, d_model, d_ff, num_heads, rope_theta, weights=weights)
+    return transformer_now(in_indices)
     raise NotImplementedError
 
 
