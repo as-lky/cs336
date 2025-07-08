@@ -484,6 +484,8 @@ def run_cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: 
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
+    inputs = inputs - torch.max(inputs, dim=-1, keepdim=True).values
+    return torch.mean(torch.log(torch.sum(torch.exp(inputs), dim=-1, keepdim=True)) - inputs[torch.arange(inputs.shape[0]), targets])
     raise NotImplementedError
 
 

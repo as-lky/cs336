@@ -41,7 +41,7 @@ class LkyRMSnorm(torch.nn.Module):
         if weights is not None:
             self.weights = weights
         else:
-            print(d_model, device, dtype)
+#            print(d_model, device, dtype)
             self.weights = torch.nn.Parameter(torch.ones(d_model, device=device, dtype=dtype))
     
     def forward(self, x):

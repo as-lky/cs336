@@ -131,5 +131,6 @@ import torch
 #     print(GG)
 # GG = 5
 # func()
-a = torch.tensor([1, 2, 3])
-print(a[None])
+a = torch.tensor([[1, 2, 3], [3, 2, 1]])
+b = torch.tensor([[0], [1]])
+print(a[b])
