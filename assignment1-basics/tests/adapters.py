@@ -14,6 +14,7 @@ from torch import Tensor
 from einops import einsum, rearrange
 
 from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock, LkyTransformer
+from cs336_basics.optimizer import LkyAdamW
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
@@ -505,6 +506,7 @@ def get_adamw_cls() -> type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
+    return LkyAdamW
     raise NotImplementedError
 
 
