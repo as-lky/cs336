@@ -18,6 +18,7 @@ from cs336_basics.optimizer import LkyAdamW, lr_cosine_schedule, gradient_clippi
 from cs336_basics.dataloader import LkyDataSet 
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.train import save_checkpoint, load_checkpoint
 
 def run_linear(
     d_in: int,
@@ -562,7 +563,8 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    save_checkpoint(model, optimizer, iteration, out)
+#    raise NotImplementedError
 
 
 def run_load_checkpoint(
@@ -583,6 +585,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
+    return load_checkpoint(src, model, optimizer)
     raise NotImplementedError
                     
 def get_tokenizer(
