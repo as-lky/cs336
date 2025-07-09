@@ -31,3 +31,10 @@ class LkyAdamW(torch.optim.Optimizer):
                 p.data -= p.data * lr * lam
                 state["t"] = t + 1
         return loss
+
+def lr_cosine_schedule(it, max_lr, min_lr, warmup_iters, cosine_cycle_iters):
+    if it < warmup_iters:
+        return max_lr * it / warmup_iters
+    if it < cosine_cycle_iters:
+        return (0.5 + 0.5 * math.cos((it - warmup_iters) * math.pi / (cosine_cycle_iters - warmup_iters))) * (max_lr - min_lr) + min_lr
+    return min_lr
