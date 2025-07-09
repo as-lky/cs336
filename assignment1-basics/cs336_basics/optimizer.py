@@ -38,3 +38,18 @@ def lr_cosine_schedule(it, max_lr, min_lr, warmup_iters, cosine_cycle_iters):
     if it < cosine_cycle_iters:
         return (0.5 + 0.5 * math.cos((it - warmup_iters) * math.pi / (cosine_cycle_iters - warmup_iters))) * (max_lr - min_lr) + min_lr
     return min_lr
+
+def gradient_clipping(parameters, max_l2_norm, eps=1e-6):
+    sum = 0
+    for parameter in parameters:
+        if parameter.grad is None:
+            continue
+        sum += torch.sum(parameter.grad.data ** 2)
+    sum = math.sqrt(sum)
+    if sum < max_l2_norm:
+        return parameters   
+    a = max_l2_norm / (sum + eps)
+    for parameter in parameters:
+        if parameter.grad is None:
+            continue
+        parameter.grad.data *= a

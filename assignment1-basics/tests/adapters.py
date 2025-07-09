@@ -14,7 +14,7 @@ from torch import Tensor
 from einops import einsum, rearrange
 
 from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock, LkyTransformer
-from cs336_basics.optimizer import LkyAdamW, lr_cosine_schedule
+from cs336_basics.optimizer import LkyAdamW, lr_cosine_schedule, gradient_clipping
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
@@ -499,6 +499,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
+    return gradient_clipping(parameters, max_l2_norm)
     raise NotImplementedError
 
 
