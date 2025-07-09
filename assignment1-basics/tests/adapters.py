@@ -15,6 +15,7 @@ from einops import einsum, rearrange
 
 from cs336_basics.modules import LkyLinear, LkyEmbedding, LkyRMSnorm, LkyFFN, LkyRoPE, LkyMultiheadAttention, LkyTransformerBlock, LkyTransformer
 from cs336_basics.optimizer import LkyAdamW, lr_cosine_schedule, gradient_clipping
+from cs336_basics.dataloader import LkyDataSet 
 from cs336_basics.modules import lkysoftmax, lkyattention
 from cs336_basics.tokenizer import Tokenizer
 
@@ -452,6 +453,11 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
+    dataset_now = LkyDataSet(dataset, context_length)
+    dataloader_now = torch.utils.data.DataLoader(dataset_now, batch_size=batch_size, shuffle=True)
+    device = torch.device(device)
+    sample = next(iter(dataloader_now))
+    return sample[0].to(device), sample[1].to(device) 
     raise NotImplementedError
 
 
