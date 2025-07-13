@@ -1,0 +1,4 @@
+a. 写脚本测试forward 和 backward的性能
+b. 具体数值
+c. 不带warm up
+
