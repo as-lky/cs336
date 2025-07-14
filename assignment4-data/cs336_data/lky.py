@@ -1,6 +1,7 @@
 from resiliparse.extract.html2text import extract_plain_text
 from resiliparse.parse.encoding import EncodingDetector
 from fastwarc.warc import ArchiveIterator, WarcRecordType
+import fasttext
 import re
 
 def extract_text_from_html_bytes(html_bytes):
@@ -10,7 +11,10 @@ def extract_text_from_html_bytes(html_bytes):
     return extract_plain_text(html_str)
 
 def identify_language(text):
-    ...
+    model = fasttext.load_model('./cs336_data/lid.176.bin')
+    text = text.replace('\n', '')
+    predict = model.predict(text)    
+    return predict[0][0].replace('__label__', ''), predict[1][0]
 
 def mask_emails(text):
     PAT = r'[\w\.]+@[\w\.]+'
