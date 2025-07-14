@@ -586,7 +586,7 @@ def run_load_checkpoint(
         int: the previously-serialized number of iterations.
     """
     return load_checkpoint(src, model, optimizer)
-    raise NotImplementedError
+#    raise NotImplementedError
                     
 def get_tokenizer(
     vocab: dict[int, bytes],
