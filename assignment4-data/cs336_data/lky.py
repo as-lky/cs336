@@ -1,11 +1,13 @@
 from resiliparse.extract.html2text import extract_plain_text
 from resiliparse.parse.encoding import EncodingDetector
 from fastwarc.warc import ArchiveIterator, WarcRecordType
+from itertools import combinations
 import fasttext
 import re
 import nltk
 import mmh3
 import os
+import random
 
 def extract_text_from_html_bytes(html_bytes):
     a = EncodingDetector()
@@ -97,3 +99,157 @@ def exact_line_deduplication(input_files, output_directory):
                     if hash_set[hash_value] >= 2:
                         continue
                     ff.write(line)
+
+def jaccard_similarity(documentA, documentB, ngrams):
+    if len(documentA) < ngrams or len(documentB) < ngrams:
+        ngrams = 1
+    dict_both = {}
+    dict_any = {}
+    for i in range(len(documentA) - ngrams + 1):
+        ss = ' '.join([_ for _ in documentA[i:i+ngrams]])
+        hash_ss = mmh3.hash64(ss)
+        dict_any[hash_ss] = 1
+        dict_both[hash_ss] = 1
+    for i in range(len(documentB) - ngrams + 1):
+        ss = ' '.join([_ for _ in documentB[i:i+ngrams]])
+        hash_ss = mmh3.hash64(ss)
+        dict_any[hash_ss] = 1
+        dict_both[hash_ss] = dict_both.get(hash_ss, 0) | 2
+    sum_any = len(dict_any)
+    sum_both = 0.0
+    for val in dict_both.values():
+        if val == 3:
+            sum_both += 1
+    return sum_both / sum_any
+
+
+def minhash_deduplication(
+    input_files: list[os.PathLike],
+    num_hashes: int,
+    num_bands: int,
+    ngrams: int,
+    jaccard_threshold: float,
+    output_directory: os.PathLike,
+):
+    assert num_hashes % num_bands == 0
+
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
+
+    random.seed(123)
+    seed_set = [random.randint(1, 1230213) for _ in range(num_hashes)]
+
+    file_end_document_id = []
+
+    documents = []
+    for file in input_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+        document_now = []
+        for line in lines:
+            if line.strip() == '':
+                if len(document_now) == 0:
+                    continue
+                documents.append(document_now.copy())
+                document_now = []
+            else:
+                document_now += nltk.word_tokenize(line.strip())
+        if len(document_now) != 0:
+            documents.append(document_now.copy())
+        file_end_document_id.append(len(documents))
+
+    hash_2_document_cluster = [{} for _ in range(num_bands)]
+    document_candidate_cluster = [set() for _ in range(num_bands)]
+    band_size = num_hashes // num_bands
+
+    for document_num in range(len(documents)):
+        document = documents[document_num]
+        if len(document) < ngrams:
+            ngrams_up = ngrams
+            ngrams = 1
+        else:
+            ngrams_up = ngrams
+        
+        hhash_now = []
+        for i in range(num_hashes):
+            MIN = 2e30
+            for kk in range(len(document) - ngrams + 1):
+                ss = ' '.join([_ for _ in document[kk:kk+ngrams]])
+                hash_now = mmh3.hash(ss, seed_set[i])
+                MIN = min(MIN, hash_now)
+            hhash_now.append(MIN)
+        for i in range(num_bands):
+            w = tuple(hhash_now[i*band_size:(i+1)*band_size])
+            if w in hash_2_document_cluster[i]:
+                if hash_2_document_cluster[i][w] not in document_candidate_cluster[i]:
+                    document_candidate_cluster[i].add(hash_2_document_cluster[i][w])
+                document_candidate_cluster[i].add(document_num)
+            else:
+                hash_2_document_cluster[i][w] = document_num
+        ngrams = ngrams_up
+
+    edges = [[] for _ in range(len(documents))]
+    used = [0 for _ in range(len(documents))]
+    keep = [1 for _ in range(len(documents))]
+
+    for i in range(num_bands):
+        tmp = list(document_candidate_cluster[i])
+        for aa in range(len(tmp)):
+            for bb in range(aa + 1, len(tmp)):
+                js = jaccard_similarity(documents[tmp[aa]], documents[tmp[bb]], ngrams)
+                if js > jaccard_threshold:
+                    edges[tmp[aa]].append(tmp[bb])
+                    edges[tmp[bb]].append(tmp[aa])
+ 
+    for i in range(len(documents)):
+        if used[i] == 1:
+            continue
+        cluster = []
+        queue = [i]
+        used[i] = 1
+        pl = 0
+        while pl < len(queue):
+            now = queue[pl]    
+            cluster.append(now)
+            for to in edges[now]:
+                if used[to] == 1:
+                    continue
+                used[to] = 1 
+                queue.append(to)
+            pl += 1
+        rr = random.randint(0, len(cluster) - 1)
+        for cc in cluster:
+            keep[cc] = 0
+        keep[cluster[rr]] = 1
+    
+    print(keep)
+
+    document_now_id = 0
+    for file in input_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+        document_now = []
+        WRITE_LINES = []
+        for line in lines:
+            if line.strip() == '':
+                if keep[document_now_id] == 1:
+                    for lineline in document_now:
+                        WRITE_LINES.append((lineline))
+                    WRITE_LINES.append('\n')
+                document_now_id += 1
+                document_now = []
+                continue
+            else:
+                document_now.append(line.strip())
+        
+        if len(document_now) != 0:
+            if keep[document_now_id] == 1:
+                for lineline in document_now:
+                    WRITE_LINES.append((lineline))
+            document_now_id += 1
+        if len(WRITE_LINES) != 0:
+            with open(os.path.join(output_directory, os.path.basename(file)), 'w') as ff:
+                print(os.path.join(output_directory, os.path.basename(file)))
+                for lines in WRITE_LINES:
+                    ff.write(lines)
+                    ff.write('\n')

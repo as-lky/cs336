@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 from cs336_data.lky import extract_text_from_html_bytes, identify_language, mask_emails, mask_ips, mask_phone_numbers
-from cs336_data.lky import gopher_quality_filter, classify_nsfw, classify_toxic_speech, exact_line_deduplication
+from cs336_data.lky import gopher_quality_filter, classify_nsfw, classify_toxic_speech, exact_line_deduplication, minhash_deduplication
 
 def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
     return extract_text_from_html_bytes(html_bytes)
@@ -65,4 +65,5 @@ def run_minhash_deduplication(
     jaccard_threshold: float,
     output_directory: os.PathLike,
 ):
+    return minhash_deduplication(input_files, num_hashes, num_bands, ngrams, jaccard_threshold, output_directory)
     raise NotImplementedError
