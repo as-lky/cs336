@@ -4,6 +4,8 @@ from fastwarc.warc import ArchiveIterator, WarcRecordType
 import fasttext
 import re
 import nltk
+import mmh3
+import os
 
 def extract_text_from_html_bytes(html_bytes):
     a = EncodingDetector()
@@ -73,3 +75,25 @@ def gopher_quality_filter(text):
     if num / len(sentences) > 0.3:
         return False
     return True
+
+def exact_line_deduplication(input_files, output_directory):
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
+    hash_set = {}
+    for file in input_files:
+        with open(file, 'r') as f:
+            for line in f:
+                hash_value = mmh3.hash64(line, seed=123)
+                if hash_value in hash_set:
+                    hash_set[hash_value] += 1
+                else:
+                    hash_set[hash_value] = 1
+
+    for file in input_files:
+        with open(file, 'r') as f:
+            with open(os.path.join(output_directory, os.path.basename(file)), 'w') as ff:
+                for line in f:
+                    hash_value = mmh3.hash64(line, seed=123)
+                    if hash_set[hash_value] >= 2:
+                        continue
+                    ff.write(line)
