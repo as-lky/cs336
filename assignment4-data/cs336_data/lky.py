@@ -3,6 +3,7 @@ from resiliparse.parse.encoding import EncodingDetector
 from fastwarc.warc import ArchiveIterator, WarcRecordType
 import fasttext
 import re
+import nltk
 
 def extract_text_from_html_bytes(html_bytes):
     a = EncodingDetector()
@@ -37,3 +38,28 @@ def mask_ips(text):
     a = re.findall(PAT, text)
     text = re.sub(PAT, r"|||IP_ADDRESS|||", text)
     return text, len(a)
+
+def gopher_quality_filter(text):
+    words = nltk.word_tokenize(text)
+    if len(words) < 50 or len(words) > 100000:
+        return False
+    sum = 0.0
+    num = 0.0
+    for word in words:
+        sum += len(word)
+        if re.match(r'[a-zA-Z]', word) is not None:
+            num += 1
+    sum /= len(words)
+    if sum < 3.0 or sum > 10.0:
+        return False
+    if num / len(words) < 0.8:
+        return False
+    
+    sentences = nltk.sent_tokenize(text)
+    num = 0.0
+    for sentence in sentences:
+        if sentence[-3:] == '...':
+            num += 1
+    if num / len(sentences) > 0.3:
+        return False
+    return True

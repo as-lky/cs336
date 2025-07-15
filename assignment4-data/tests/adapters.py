@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 from cs336_data.lky import extract_text_from_html_bytes, identify_language, mask_emails, mask_ips, mask_phone_numbers
-
+from cs336_data.lky import gopher_quality_filter
 
 def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
     return extract_text_from_html_bytes(html_bytes)
@@ -43,6 +43,7 @@ def run_classify_quality(text: str) -> tuple[Any, float]:
 
 
 def run_gopher_quality_filter(text: str) -> bool:
+    return gopher_quality_filter(text)
     raise NotImplementedError
 
 
