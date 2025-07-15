@@ -17,6 +17,16 @@ def identify_language(text):
     predict = model.predict(text)    
     return predict[0][0].replace('__label__', ''), predict[1][0]
 
+def classify_toxic_speech(text):
+    model = fasttext.load_model('./jigsaw_fasttext_bigrams_hatespeech_final.bin')
+    predict = model.predict(text)
+    return predict[0][0].replace('__label__', ''), predict[1][0]
+
+def classify_nsfw(text):
+    model = fasttext.load_model('./jigsaw_fasttext_bigrams_nsfw_final.bin')
+    predict = model.predict(text)
+    return predict[0][0].replace('__label__', ''), predict[1][0]
+
 def mask_emails(text):
     PAT = r'[\w\.]+@[\w\.]+'
     a = re.findall(PAT, text)

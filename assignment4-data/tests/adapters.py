@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 from cs336_data.lky import extract_text_from_html_bytes, identify_language, mask_emails, mask_ips, mask_phone_numbers
-from cs336_data.lky import gopher_quality_filter
+from cs336_data.lky import gopher_quality_filter, classify_nsfw, classify_toxic_speech
 
 def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
     return extract_text_from_html_bytes(html_bytes)
@@ -31,14 +31,17 @@ def run_mask_ips(text: str) -> tuple[str, int]:
 
 
 def run_classify_nsfw(text: str) -> tuple[Any, float]:
+    return classify_nsfw(text)
     raise NotImplementedError
 
 
 def run_classify_toxic_speech(text: str) -> tuple[Any, float]:
+    return classify_toxic_speech(text)
     raise NotImplementedError
 
 
 def run_classify_quality(text: str) -> tuple[Any, float]:
+    # TODO
     raise NotImplementedError
 
 
