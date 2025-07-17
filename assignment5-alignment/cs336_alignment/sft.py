@@ -18,3 +18,12 @@ def compute_entropy(logits):
 def masked_normalize(x, mask, norm_c, dim):
     return torch.sum(x * mask, dim=dim) / norm_c
     
+def sft_microbatch_train_step(
+    policy_log_probs: torch.Tensor,
+    response_mask: torch.Tensor,
+    gradient_accumulation_steps: int,
+    normalize_constant: int | None = 1.0,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    loss = -masked_normalize(policy_log_probs, response_mask, normalize_constant, dim=None) / gradient_accumulation_steps / policy_log_probs.shape[0] # / batch_size
+    loss.backward()
+    return loss, None
