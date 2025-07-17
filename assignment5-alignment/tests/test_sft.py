@@ -9,6 +9,9 @@ from .adapters import (
 )
 
 def test_tokenize_prompt_and_output(numpy_snapshot, prompt_strs, output_strs, tokenizer):
+    print("====================")
+    print(tokenizer)
+    
     output = tokenize_prompt_and_output(
         prompt_strs=prompt_strs,
         output_strs=output_strs,

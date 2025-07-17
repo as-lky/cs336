@@ -208,7 +208,7 @@ def output_strs():
     ]
 
 
-@pytest.fixture
+@pytest.fixture 
 def model_id():
     return "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
 
