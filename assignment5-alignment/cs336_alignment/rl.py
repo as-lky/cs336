@@ -28,3 +28,6 @@ def compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprang
     L = tmp * advantages
     R = torch.clip(tmp, 1 - cliprange, 1 + cliprange) * advantages
     return -torch.minimum(L, R), None
+
+def masked_mean(tensor, mask, dim):
+    return torch.sum(tensor * mask, dim=dim) / torch.sum(mask, dim=dim)
