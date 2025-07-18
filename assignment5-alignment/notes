@@ -1,3 +1,5 @@
 math baseline 
 测评pretrained model的math problem回答效果
 
+为什么强化学习不用pg_loss做指标
+为什么off training 和 on training用的数据来源不同呢
