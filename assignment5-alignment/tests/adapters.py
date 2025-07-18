@@ -8,7 +8,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 from cs336_alignment.sft import compute_entropy, masked_normalize, sft_microbatch_train_step
-from cs336_alignment.rl import compute_group_normalized_rewards, compute_naive_policy_gradient_loss
+from cs336_alignment.rl import compute_group_normalized_rewards, compute_naive_policy_gradient_loss, compute_grpo_clip_loss
 
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
@@ -164,6 +164,7 @@ def run_compute_grpo_clip_loss(
             dict[str, torch.Tensor]: metadata for the GRPO-Clip loss 
                 (used to compute clip fraction).
     """
+    return compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprange)
     raise NotImplementedError
 
 
