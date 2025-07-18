@@ -19,4 +19,6 @@ def compute_group_normalized_rewards(
         advantages = rewards - torch.mean(rewards, dim=-1, keepdim=True)
     advantages = rearrange(advantages, 'group_num group_size -> (group_num group_size)')
     return advantages, raw_rewards, None
-    
+
+def compute_naive_policy_gradient_loss(raw_rewards_or_advantages, policy_log_probs):
+    return -raw_rewards_or_advantages * policy_log_probs
